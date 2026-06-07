@@ -1,0 +1,406 @@
+name: Commercial Build
+
+# RustDesk Pro Server Commercial Edition Build Workflow
+# Based on community edition build.yaml with commercial-specific modifications
+
+permissions:
+  contents: read
+  packages: write
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'pro-v[0-9]+.[0-9]+.[0-9]+'
+      - 'pro-[0-9]+.[0-9]+.[0-9]+'
+      - 'pro-v[0-9]+.[0-9]+.[0-9]+-[0-9]+'
+      - 'pro-[0-9]+.[0-9]+.[0-9]+-[0-9]+'
+
+env:
+  CARGO_TERM_COLOR: always
+  LATEST_TAG: latest
+  GHCR_IMAGE: ghcr.io/changsongyang/rustdesk-pro-server
+
+jobs:
+
+  # Binary build for Linux platforms
+  build:
+
+    name: Build - ${{ matrix.job.name }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - { name: "amd64",   target: "x86_64-unknown-linux-musl" }
+          - { name: "arm64v8", target: "aarch64-unknown-linux-musl" }
+          - { name: "armv7",   target: "armv7-unknown-linux-musleabihf" }
+
+    steps:
+      
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.90"
+          targets: ${{ matrix.job.target }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.job.target }}
+
+      - name: Build
+        run: cargo build --manifest-path commercial/Cargo.toml --release --all-features --target=${{ matrix.job.target }}
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: true
+
+      - name: Exec chmod
+        run: chmod -v a+x commercial/target/${{ matrix.job.target }}/release/*
+
+      - name: Publish Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-linux-${{ matrix.job.name }}
+          path: |
+            commercial/target/${{ matrix.job.target }}/release/rustdesk-pro
+          if-no-files-found: error
+
+  # Windows build
+  build-win:
+    name: Build - windows
+    runs-on: windows-2022
+
+    steps:
+      
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.90"
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --manifest-path commercial/Cargo.toml --release --all-features --target=x86_64-pc-windows-msvc
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: true
+
+      - name: Publish Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-windows-x86_64
+          path: |
+            commercial\target\x86_64-pc-windows-msvc\release\rustdesk-pro.exe
+          if-no-files-found: error
+
+  # GitHub (draft) release with all binaries
+  release:
+
+    name: Github release
+    needs: 
+      - build
+      - build-win
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - { os: "linux", name: "amd64", suffix: "" }
+          - { os: "linux", name: "arm64v8", suffix: "" }
+          - { os: "linux", name: "armv7", suffix: "" }
+          - { os: "windows", name: "x86_64", suffix: "" }
+          
+    steps:
+
+      - name: Download binaries (${{ matrix.job.os }} - ${{ matrix.job.name }})
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-${{ matrix.job.os }}-${{ matrix.job.name }}
+          path: ${{ matrix.job.name }}
+
+      - name: Exec chmod
+        run: chmod -v a+x ${{ matrix.job.name }}/*
+
+      - name: Pack files (${{ matrix.job.os }} - ${{ matrix.job.name }})
+        run: |
+          sudo apt update
+          DEBIAN_FRONTEND=noninteractive sudo apt install -y zip
+          zip ${{ matrix.job.name }}/rustdesk-pro-server-${{ matrix.job.os }}-${{ matrix.job.name }}${{ matrix.job.suffix }}.zip ${{ matrix.job.name }}/*
+
+      - name: Create Release (${{ matrix.job.os }} - (${{ matrix.job.name }})
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: ${{ matrix.job.name }}/rustdesk-pro-server-${{ matrix.job.os }}-${{ matrix.job.name }}${{ matrix.job.suffix }}.zip
+            
+  # Docker build and push of single-arch images
+  docker:
+
+    name: Docker push - ${{ matrix.job.name }}
+    needs: build
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - { name: "amd64",   docker_platform: "linux/amd64" }
+          - { name: "arm64v8", docker_platform: "linux/arm64" }
+          - { name: "armv7",   docker_platform: "linux/arm/v7" }
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+        
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-linux-${{ matrix.job.name }}
+          path: commercial/docker/rootfs/usr/bin
+
+      - name: Make binaries executable
+        run: chmod -v a+x commercial/docker/rootfs/usr/bin/*
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: changsongyang
+          password: ${{ secrets.GITHUB_TOKEN }}
+        
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: registry.hub.docker.com/${{ secrets.DOCKER_PRO_IMAGE }}
+
+      - name: Get git tag
+        id: vars
+        run: |
+          T=${GITHUB_REF#refs/*/}
+          M=${T%%.*}
+          echo "GIT_TAG=$T" >> $GITHUB_ENV
+          echo "MAJOR_TAG=$M" >> $GITHUB_ENV
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: "./commercial/docker"
+          platforms: ${{ matrix.job.docker_platform }}
+          push: true
+          provenance: false
+          tags: |
+            ${{ secrets.DOCKER_PRO_IMAGE }}:${{ env.LATEST_TAG }}-${{ matrix.job.name }}
+            ${{ secrets.DOCKER_PRO_IMAGE }}:${{ env.GIT_TAG }}-${{ matrix.job.name }}
+            ${{ secrets.DOCKER_PRO_IMAGE }}:${{ env.MAJOR_TAG }}-${{ matrix.job.name }}
+            ${{ env.GHCR_IMAGE }}:${{ env.LATEST_TAG }}-${{ matrix.job.name }}
+            ${{ env.GHCR_IMAGE }}:${{ env.GIT_TAG }}-${{ matrix.job.name }}
+            ${{ env.GHCR_IMAGE }}:${{ env.MAJOR_TAG }}-${{ matrix.job.name }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # Docker build and push of multiarch images
+  docker-manifest:
+
+    name: Docker manifest
+    needs: docker
+    runs-on: ubuntu-22.04
+
+    steps:
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      - name: Get git tag
+        id: vars
+        run: |
+          T=${GITHUB_REF#refs/*/}
+          M=${T%%.*}
+          echo "GIT_TAG=$T" >> $GITHUB_ENV
+          echo "MAJOR_TAG=$M" >> $GITHUB_ENV
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: changsongyang
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # manifest for :pro-1.2.3 tag
+      - name: Create and push manifest (:ve.rs.ion)
+        uses: Noelware/docker-manifest-action@0.4.3
+        if: github.event_name != 'workflow_dispatch'
+        with:
+          base-image: ${{ secrets.DOCKER_PRO_IMAGE }}:${{ env.GIT_TAG }}
+          extra-images: ${{ secrets.DOCKER_PRO_IMAGE }}:${{ env.GIT_TAG }}-amd64,${{ secrets.DOCKER_PRO_IMAGE }}:${{ env.GIT_TAG }}-arm64v8,${{ secrets.DOCKER_PRO_IMAGE }}:${{ env.GIT_TAG }}-armv7
+          push: true
+
+      # manifest for :pro-1 tag (major release)
+      - name: Create and push manifest (:major)
+        uses: Noelware/docker-manifest-action@0.4.3
+        with:
+          base-image: ${{ secrets.DOCKER_PRO_IMAGE }}:${{ env.MAJOR_TAG }}
+          extra-images: ${{ secrets.DOCKER_PRO_IMAGE }}:${{ env.MAJOR_TAG }}-amd64,${{ secrets.DOCKER_PRO_IMAGE }}:${{ env.MAJOR_TAG }}-arm64v8,${{ secrets.DOCKER_PRO_IMAGE }}:${{ env.MAJOR_TAG }}-armv7
+          push: true
+
+      # manifest for :latest tag
+      - name: Create and push manifest (:latest)
+        uses: Noelware/docker-manifest-action@0.4.3
+        with:
+          base-image: ${{ secrets.DOCKER_PRO_IMAGE }}:${{ env.LATEST_TAG }}
+          extra-images: ${{ secrets.DOCKER_PRO_IMAGE }}:${{ env.LATEST_TAG }}-amd64,${{ secrets.DOCKER_PRO_IMAGE }}:${{ env.LATEST_TAG }}-arm64v8,${{ secrets.DOCKER_PRO_IMAGE }}:${{ env.LATEST_TAG }}-armv7
+          push: true
+
+      # GHCR manifests
+      # manifest for :pro-1.2.3 tag
+      - name: Create and push GHCR manifest (:ve.rs.ion)
+        uses: Noelware/docker-manifest-action@0.4.3
+        if: github.event_name != 'workflow_dispatch'
+        with:
+          base-image: ${{ env.GHCR_IMAGE }}:${{ env.GIT_TAG }}
+          extra-images: ${{ env.GHCR_IMAGE }}:${{ env.GIT_TAG }}-amd64,${{ env.GHCR_IMAGE }}:${{ env.GIT_TAG }}-arm64v8,${{ env.GHCR_IMAGE }}:${{ env.GIT_TAG }}-armv7
+          push: true
+
+      # manifest for :pro-1 tag (major release)
+      - name: Create and push GHCR manifest (:major)
+        uses: Noelware/docker-manifest-action@0.4.3
+        with:
+          base-image: ${{ env.GHCR_IMAGE }}:${{ env.MAJOR_TAG }}
+          extra-images: ${{ env.GHCR_IMAGE }}:${{ env.MAJOR_TAG }}-amd64,${{ env.GHCR_IMAGE }}:${{ env.MAJOR_TAG }}-arm64v8,${{ env.GHCR_IMAGE }}:${{ env.MAJOR_TAG }}-armv7
+          push: true
+
+      # manifest for :latest tag
+      - name: Create and push GHCR manifest (:latest)
+        uses: Noelware/docker-manifest-action@0.4.3
+        with:
+          base-image: ${{ env.GHCR_IMAGE }}:${{ env.LATEST_TAG }}
+          extra-images: ${{ env.GHCR_IMAGE }}:${{ env.LATEST_TAG }}-amd64,${{ env.GHCR_IMAGE }}:${{ env.LATEST_TAG }}-arm64v8,${{ env.GHCR_IMAGE }}:${{ env.LATEST_TAG }}-armv7
+          push: true
+
+  # Debian package build
+  deb-package:
+
+    name: debian package - ${{ matrix.job.name }}
+    needs: build
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - { name: "amd64",   debian_platform: "amd64",   crossbuild_package: "" }
+          - { name: "arm64v8", debian_platform: "arm64",   crossbuild_package: "crossbuild-essential-arm64" }
+          - { name: "armv7",   debian_platform: "armhf",   crossbuild_package: "crossbuild-essential-armhf" }
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-linux-${{ matrix.job.name }}
+          path: binaries
+
+      - name: Make binaries executable
+        run: chmod -v a+x binaries/*
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          DEBIAN_FRONTEND=noninteractive sudo apt install -y debhelper fakeroot ${{ matrix.job.crossbuild_package }}
+
+      - name: Get git tag
+        id: vars
+        run: |
+          T=${GITHUB_REF#refs/*/}
+          echo "GIT_TAG=$T" >> $GITHUB_ENV
+
+      - name: Build debian package
+        run: |
+          mkdir -p debian-package
+          cp binaries/* debian-package/
+          
+          # Create control file
+          mkdir -p debian-package/DEBIAN
+          cat > debian-package/DEBIAN/control << EOF
+          Package: rustdesk-pro-server
+          Version: ${{ env.GIT_TAG }}
+          Section: net
+          Priority: optional
+          Architecture: ${{ matrix.job.debian_platform }}
+          Maintainer: RustDesk Team <info@rustdesk.com>
+          Description: RustDesk Pro Server - Enterprise Remote Control Solution
+           RustDesk Pro Server is the commercial edition of RustDesk Server,
+           providing enterprise-grade features including license management,
+           user management, device management, and audit logging.
+          EOF
+          
+          # Build package
+          fakeroot dpkg-deb --build debian-package rustdesk-pro-server-${{ env.GIT_TAG }}-${{ matrix.job.name }}.deb
+
+      - name: Publish Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-package-${{ matrix.job.name }}
+          path: rustdesk-pro-server-${{ env.GIT_TAG }}-${{ matrix.job.name }}.deb
+          if-no-files-found: error
+
+  # Upload debian packages to release
+  release-deb:
+
+    name: Release debian packages
+    needs: deb-package
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - { name: "amd64" }
+          - { name: "arm64v8" }
+          - { name: "armv7" }
+
+    steps:
+
+      - name: Download debian package
+        uses: actions/download-artifact@v4
+        with:
+          name: debian-package-${{ matrix.job.name }}
+          path: .
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: rustdesk-pro-server-*.deb

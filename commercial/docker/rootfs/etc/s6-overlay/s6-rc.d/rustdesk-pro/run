@@ -1,0 +1,15 @@
+#!/command/with-contenv sh
+# RustDesk Pro Server startup script
+
+# Set default environment variables
+: ${SERVER_PORT:=8080}
+: ${SERVER_HOST:=0.0.0.0}
+: ${DATABASE_URL:=sqlite:./data/rustdesk_pro.db}
+: ${LOG_LEVEL:=info}
+
+# Create necessary directories
+mkdir -p /app/data /app/logs /app/keys
+
+# Start the server
+cd /app
+exec /usr/bin/rustdesk-pro serve
