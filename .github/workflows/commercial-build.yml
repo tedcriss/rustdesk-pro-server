@@ -64,7 +64,7 @@ jobs:
           key: ${{ matrix.job.target }}
 
       - name: Build
-        run: cross build --manifest-path commercial/Cargo.toml --release --all-features --target=${{ matrix.job.target }}
+        run: cross build --manifest-path commercial/Cargo.toml --release --target=${{ matrix.job.target }}
         env:
           CARGO_NET_GIT_FETCH_WITH_CLI: true
           OPENSSL_DIR: /usr
@@ -103,7 +103,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build
-        run: cargo build --manifest-path commercial/Cargo.toml --release --all-features --target=x86_64-pc-windows-msvc
+        run: cargo build --manifest-path commercial/Cargo.toml --release --target=x86_64-pc-windows-msvc
         env:
           CARGO_NET_GIT_FETCH_WITH_CLI: true
 
