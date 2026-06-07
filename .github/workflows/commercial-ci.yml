@@ -58,7 +58,7 @@ jobs:
         run: cd commercial && cargo test --all --all-features -- --nocapture
         env:
           CARGO_NET_GIT_FETCH_WITH_CLI: true
-          DATABASE_URL: sqlite::memory:
+          DATABASE_URL: "sqlite::memory:"
 
   build:
     name: Build
