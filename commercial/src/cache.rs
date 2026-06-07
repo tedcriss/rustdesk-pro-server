@@ -57,13 +57,13 @@ where
     /// 获取缓存值
     pub async fn get(&self, key: &K) -> Option<V> {
         let entries = self.entries.read().await;
-        
+
         if let Some(entry) = entries.get(key) {
             if !entry.is_expired() {
                 return Some(entry.value.clone());
             }
         }
-        
+
         None
     }
 
@@ -79,7 +79,7 @@ where
         if entries.len() >= self.max_size {
             // 简单策略：删除第一个过期的条目
             entries.retain(|_, v| !v.is_expired());
-            
+
             // 如果仍然满了，随机删除一些条目
             if entries.len() >= self.max_size {
                 let to_remove = entries.len() - self.max_size / 2;
@@ -89,7 +89,7 @@ where
                 }
             }
         }
-        
+
         entries.insert(key, CacheEntry::new(value, ttl_secs));
     }
 
@@ -131,44 +131,44 @@ mod tests {
     #[tokio::test]
     async fn test_cache_set_get() {
         let cache = CacheManager::<i32, String>::new(10);
-        
+
         cache.set(1, "one".to_string()).await;
-        
+
         assert_eq!(cache.get(&1).await, Some("one".to_string()));
     }
 
     #[tokio::test]
     async fn test_cache_expiration() {
         let cache = CacheManager::<i32, String>::new(10);
-        
+
         cache.set_with_ttl(1, "one".to_string(), Some(1)).await;
-        
+
         assert_eq!(cache.get(&1).await, Some("one".to_string()));
-        
+
         // Wait for expiration
         sleep(Duration::from_secs(2)).await;
-        
+
         assert_eq!(cache.get(&1).await, None);
     }
 
     #[tokio::test]
     async fn test_cache_remove() {
         let cache = CacheManager::<i32, String>::new(10);
-        
+
         cache.set(1, "one".to_string()).await;
         cache.remove(&1).await;
-        
+
         assert_eq!(cache.get(&1).await, None);
     }
 
     #[tokio::test]
     async fn test_cache_clear() {
         let cache = CacheManager::<i32, String>::new(10);
-        
+
         cache.set(1, "one".to_string()).await;
         cache.set(2, "two".to_string()).await;
         cache.clear().await;
-        
+
         assert!(cache.is_empty().await);
     }
 }

@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
@@ -25,16 +25,20 @@ pub enum UserRole {
     Viewer,
 }
 
-impl UserRole {
-    pub fn from_str(s: &str) -> Option<Self> {
+impl FromStr for UserRole {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "admin" => Some(Self::Admin),
-            "operator" => Some(Self::Operator),
-            "viewer" => Some(Self::Viewer),
-            _ => None,
+            "admin" => Ok(Self::Admin),
+            "operator" => Ok(Self::Operator),
+            "viewer" => Ok(Self::Viewer),
+            _ => Err(()),
         }
     }
-    
+}
+
+impl UserRole {
     pub fn to_str(&self) -> &'static str {
         match self {
             Self::Admin => "admin",
@@ -42,7 +46,7 @@ impl UserRole {
             Self::Viewer => "viewer",
         }
     }
-    
+
     pub fn has_permission(&self, permission: Permission) -> bool {
         match (self, permission) {
             (_, Permission::View) => true,

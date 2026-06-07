@@ -4,16 +4,16 @@ use thiserror::Error;
 pub enum DeviceError {
     #[error("Device not found")]
     NotFound,
-    
+
     #[error("Device already exists")]
     AlreadyExists,
-    
+
     #[error("Invalid device status")]
     InvalidStatus,
-    
+
     #[error("Device not approved")]
     NotApproved,
-    
+
     #[error("Database error: {0}")]
     DatabaseError(String),
 }

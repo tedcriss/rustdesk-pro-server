@@ -4,31 +4,31 @@ use thiserror::Error;
 pub enum LicenseError {
     #[error("Invalid license key format")]
     InvalidFormat,
-    
+
     #[error("License signature verification failed")]
     InvalidSignature,
-    
+
     #[error("License has expired")]
     Expired,
-    
+
     #[error("License type not recognized")]
     InvalidType,
-    
+
     #[error("License key not found")]
     NotFound,
-    
+
     #[error("Maximum device limit reached")]
     DeviceLimitExceeded,
-    
+
     #[error("Database error: {0}")]
     DatabaseError(String),
-    
+
     #[error("Crypto error: {0}")]
     CryptoError(String),
-    
+
     #[error("IO error: {0}")]
     IoError(String),
-    
+
     #[error("Invalid parameter: {0}")]
     InvalidParameter(String),
 }

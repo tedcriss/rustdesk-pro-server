@@ -4,34 +4,34 @@ use thiserror::Error;
 pub enum UserError {
     #[error("User not found")]
     NotFound,
-    
+
     #[error("Username already exists")]
     UsernameExists,
-    
+
     #[error("Email already exists")]
     EmailExists,
-    
+
     #[error("Invalid username or password")]
     InvalidCredentials,
-    
+
     #[error("Invalid role")]
     InvalidRole,
-    
+
     #[error("Password must be at least 8 characters")]
     PasswordTooShort,
-    
+
     #[error("User is not active")]
     UserNotActive,
-    
+
     #[error("Unauthorized")]
     Unauthorized,
-    
+
     #[error("Database error: {0}")]
     DatabaseError(String),
-    
+
     #[error("JWT error: {0}")]
     JwtError(String),
-    
+
     #[error("BCrypt error: {0}")]
     BcryptError(String),
 }

@@ -1,23 +1,26 @@
 use axum::{
-    extract::{Json, Path, Query, Extension},
+    extract::{Extension, Json, Path, Query},
     http::StatusCode,
-    response::{IntoResponse, Json as JsonResponse},
+    response::IntoResponse,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-use crate::AppState;
-use crate::user::models::*;
-use crate::device::models::*;
 use crate::audit::models::*;
+use crate::device::models::*;
+use crate::user::models::*;
+use crate::AppState;
 
 // ==================== Health Check ====================
 
 pub async fn health_check() -> impl IntoResponse {
-    (StatusCode::OK, Json(serde_json::json!({
-        "status": "ok",
-        "version": "1.0.0",
-        "service": "rustdesk-pro-server"
-    })))
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "status": "ok",
+            "version": "1.0.0",
+            "service": "rustdesk-pro-server"
+        })),
+    )
 }
 
 // ==================== Authentication ====================
@@ -36,12 +39,12 @@ pub async fn login(
         username: request.username,
         password: request.password,
     };
-    
+
     match state.user_manager.login(login_request).await {
         Ok(response) => Ok(Json(serde_json::to_value(response).unwrap())),
         Err(e) => Err((
             StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -59,7 +62,7 @@ pub async fn validate_token(
         Ok(user) => Ok(Json(serde_json::to_value(user).unwrap())),
         Err(e) => Err((
             StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -71,10 +74,13 @@ pub async fn create_user(
     Json(request): Json<UserCreateRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     match state.user_manager.create_user(request).await {
-        Ok(user) => Ok((StatusCode::CREATED, Json(serde_json::to_value(user).unwrap()))),
+        Ok(user) => Ok((
+            StatusCode::CREATED,
+            Json(serde_json::to_value(user).unwrap()),
+        )),
         Err(e) => Err((
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -87,18 +93,18 @@ pub async fn get_user(
         Ok(user) => Ok(Json(serde_json::to_value(user).unwrap())),
         Err(e) => Err((
             StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
 
 pub async fn get_current_user(
-    Extension(state): Extension<AppState>,
+    Extension(_state): Extension<AppState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     // TODO: Get user from auth middleware
     Err((
         StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({"error": "Not implemented"}))
+        Json(serde_json::json!({"error": "Not implemented"})),
     ))
 }
 
@@ -111,11 +117,15 @@ pub async fn list_users(
     Extension(state): Extension<AppState>,
     Query(query): Query<ListUsersQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    match state.user_manager.list_users(query.organization_id.as_deref()).await {
+    match state
+        .user_manager
+        .list_users(query.organization_id.as_deref())
+        .await
+    {
         Ok(users) => Ok(Json(serde_json::to_value(users).unwrap())),
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -129,7 +139,7 @@ pub async fn update_user(
         Ok(user) => Ok(Json(serde_json::to_value(user).unwrap())),
         Err(e) => Err((
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -142,7 +152,7 @@ pub async fn delete_user(
         Ok(_) => Ok((StatusCode::NO_CONTENT, Json(serde_json::json!({})))),
         Err(e) => Err((
             StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -161,7 +171,7 @@ pub async fn change_password(
     // TODO: Implement password change
     Err((
         StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({"error": "Not implemented"}))
+        Json(serde_json::json!({"error": "Not implemented"})),
     ))
 }
 
@@ -172,10 +182,13 @@ pub async fn create_device(
     Json(request): Json<DeviceCreateRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     match state.device_manager.create_device(request, None).await {
-        Ok(device) => Ok((StatusCode::CREATED, Json(serde_json::to_value(device).unwrap()))),
+        Ok(device) => Ok((
+            StatusCode::CREATED,
+            Json(serde_json::to_value(device).unwrap()),
+        )),
         Err(e) => Err((
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -188,7 +201,7 @@ pub async fn get_device(
         Ok(device) => Ok(Json(serde_json::to_value(device).unwrap())),
         Err(e) => Err((
             StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -210,16 +223,16 @@ pub async fn list_devices(
         "away" => Some(DeviceStatus::Away),
         _ => None,
     });
-    
-    match state.device_manager.list_devices(
-        query.organization_id.as_deref(),
-        status,
-        query.approved,
-    ).await {
+
+    match state
+        .device_manager
+        .list_devices(query.organization_id.as_deref(), status, query.approved)
+        .await
+    {
         Ok(devices) => Ok(Json(serde_json::to_value(devices).unwrap())),
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -233,7 +246,7 @@ pub async fn update_device(
         Ok(device) => Ok(Json(serde_json::to_value(device).unwrap())),
         Err(e) => Err((
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -246,7 +259,7 @@ pub async fn delete_device(
         Ok(_) => Ok((StatusCode::NO_CONTENT, Json(serde_json::json!({})))),
         Err(e) => Err((
             StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -256,11 +269,15 @@ pub async fn approve_device(
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // TODO: Get user from auth middleware
-    match state.device_manager.approve_device(&id, "admin".to_string()).await {
+    match state
+        .device_manager
+        .approve_device(&id, "admin".to_string())
+        .await
+    {
         Ok(device) => Ok(Json(serde_json::to_value(device).unwrap())),
         Err(e) => Err((
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -280,17 +297,23 @@ pub async fn update_device_status(
         "online" => DeviceStatus::Online,
         "offline" => DeviceStatus::Offline,
         "away" => DeviceStatus::Away,
-        _ => return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Invalid status"}))
-        )),
+        _ => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "Invalid status"})),
+            ))
+        }
     };
-    
-    match state.device_manager.update_device_status(&id, status, request.ip_address).await {
+
+    match state
+        .device_manager
+        .update_device_status(&id, status, request.ip_address)
+        .await
+    {
         Ok(device) => Ok(Json(serde_json::to_value(device).unwrap())),
         Err(e) => Err((
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -298,11 +321,15 @@ pub async fn update_device_status(
 pub async fn list_pending_devices(
     Extension(state): Extension<AppState>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    match state.device_manager.list_devices(None, None, Some(false)).await {
+    match state
+        .device_manager
+        .list_devices(None, None, Some(false))
+        .await
+    {
         Ok(devices) => Ok(Json(serde_json::to_value(devices).unwrap())),
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -322,31 +349,37 @@ pub async fn list_audit_logs(
     Extension(state): Extension<AppState>,
     Query(query): Query<ListAuditLogsQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let log_type = query.log_type.and_then(|t| match t.to_lowercase().as_str() {
-        "authentication" => Some(AuditLogType::Authentication),
-        "authorization" => Some(AuditLogType::Authorization),
-        "device" => Some(AuditLogType::Device),
-        "user" => Some(AuditLogType::User),
-        "license" => Some(AuditLogType::License),
-        "system" => Some(AuditLogType::System),
-        "session" => Some(AuditLogType::Session),
-        "configuration" => Some(AuditLogType::Configuration),
-        _ => None,
-    });
-    
-    match state.audit_logger.list_logs(
-        log_type,
-        query.user_id.as_deref(),
-        query.device_id.as_deref(),
-        None,
-        None,
-        query.limit,
-        query.offset,
-    ).await {
+    let log_type = query
+        .log_type
+        .and_then(|t| match t.to_lowercase().as_str() {
+            "authentication" => Some(AuditLogType::Authentication),
+            "authorization" => Some(AuditLogType::Authorization),
+            "device" => Some(AuditLogType::Device),
+            "user" => Some(AuditLogType::User),
+            "license" => Some(AuditLogType::License),
+            "system" => Some(AuditLogType::System),
+            "session" => Some(AuditLogType::Session),
+            "configuration" => Some(AuditLogType::Configuration),
+            _ => None,
+        });
+
+    match state
+        .audit_logger
+        .list_logs(
+            log_type,
+            query.user_id.as_deref(),
+            query.device_id.as_deref(),
+            None,
+            None,
+            query.limit,
+            query.offset,
+        )
+        .await
+    {
         Ok(logs) => Ok(Json(serde_json::to_value(logs).unwrap())),
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -359,7 +392,7 @@ pub async fn get_audit_log(
         Ok(log) => Ok(Json(serde_json::to_value(log).unwrap())),
         Err(e) => Err((
             StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -388,15 +421,19 @@ pub async fn generate_license(
     Extension(state): Extension<AppState>,
     Json(request): Json<LicenseGenerateRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    match state.license_manager.generate_license(
-        &request.license_type,
-        request.duration_days,
-        request.max_devices,
-    ).await {
+    match state
+        .license_manager
+        .generate_license(
+            &request.license_type,
+            request.duration_days,
+            request.max_devices,
+        )
+        .await
+    {
         Ok(key) => Ok(Json(serde_json::json!({"key": key}))),
         Err(e) => Err((
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -414,7 +451,7 @@ pub async fn validate_license(
         Ok(info) => Ok(Json(serde_json::to_value(info).unwrap())),
         Err(e) => Err((
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": e.to_string()}))
+            Json(serde_json::json!({"error": e.to_string()})),
         )),
     }
 }
@@ -426,7 +463,7 @@ pub async fn get_active_license(
         Some(info) => Ok(Json(serde_json::to_value(info).unwrap())),
         None => Err((
             StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": "No active license"}))
+            Json(serde_json::json!({"error": "No active license"})),
         )),
     }
 }
@@ -447,7 +484,7 @@ pub async fn create_organization(
     // TODO: Implement organization creation
     Err((
         StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({"error": "Not implemented"}))
+        Json(serde_json::json!({"error": "Not implemented"})),
     ))
 }
 
@@ -465,7 +502,7 @@ pub async fn get_organization(
     // TODO: Implement organization retrieval
     Err((
         StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({"error": "Not implemented"}))
+        Json(serde_json::json!({"error": "Not implemented"})),
     ))
 }
 
@@ -477,7 +514,7 @@ pub async fn update_organization(
     // TODO: Implement organization update
     Err((
         StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({"error": "Not implemented"}))
+        Json(serde_json::json!({"error": "Not implemented"})),
     ))
 }
 
@@ -488,6 +525,6 @@ pub async fn delete_organization(
     // TODO: Implement organization deletion
     Err((
         StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({"error": "Not implemented"}))
+        Json(serde_json::json!({"error": "Not implemented"})),
     ))
 }

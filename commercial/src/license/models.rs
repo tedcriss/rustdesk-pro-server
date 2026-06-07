@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use std::str::FromStr;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,16 +23,20 @@ pub enum LicenseType {
     Enterprise,
 }
 
-impl LicenseType {
-    pub fn from_str(s: &str) -> Option<Self> {
+impl FromStr for LicenseType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "basic" => Some(Self::Basic),
-            "pro" => Some(Self::Pro),
-            "enterprise" => Some(Self::Enterprise),
-            _ => None,
+            "basic" => Ok(Self::Basic),
+            "pro" => Ok(Self::Pro),
+            "enterprise" => Ok(Self::Enterprise),
+            _ => Err(()),
         }
     }
-    
+}
+
+impl LicenseType {
     pub fn to_str(&self) -> &'static str {
         match self {
             Self::Basic => "basic",
@@ -40,7 +44,7 @@ impl LicenseType {
             Self::Enterprise => "enterprise",
         }
     }
-    
+
     pub fn max_devices_default(&self) -> i32 {
         match self {
             Self::Basic => 10,

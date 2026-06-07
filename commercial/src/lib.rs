@@ -1,20 +1,20 @@
-pub mod db;
-pub mod license;
-pub mod user;
-pub mod device;
 pub mod audit;
-pub mod web;
 pub mod cache;
+pub mod db;
+pub mod device;
+pub mod license;
 pub mod metrics;
+pub mod user;
+pub mod web;
 
 use std::sync::Arc;
 
-pub use license::LicenseManager;
-pub use user::UserManager;
-pub use device::DeviceManager;
 pub use audit::AuditLogger;
 pub use cache::CacheManager;
+pub use device::DeviceManager;
+pub use license::LicenseManager;
 pub use metrics::MetricsCollector;
+pub use user::UserManager;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -35,7 +35,7 @@ impl std::fmt::Debug for AppState {
 impl AppState {
     pub async fn new() -> Self {
         let _ = db::init_database();
-        
+
         Self {
             license_manager: Arc::new(LicenseManager::new().await),
             user_manager: Arc::new(UserManager::new().await),
