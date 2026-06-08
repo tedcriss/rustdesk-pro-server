@@ -1,0 +1,24 @@
+[advisories]
+# RUSTSEC-2025-0040: `root` appended to group listings - No fix available
+RUSTSEC-2025-0040 = "ignore"
+
+# RUSTSEC-2021-0139: ansi_term is Unmaintained - Legacy dependency
+RUSTSEC-2021-0139 = "ignore"
+
+# RUSTSEC-2024-0375: atty is unmaintained - Legacy dependency
+RUSTSEC-2024-0375 = "ignore"
+
+# RUSTSEC-2023-0051: dlopen_derive is unmaintained - Legacy dependency
+RUSTSEC-2023-0051 = "ignore"
+
+# RUSTSEC-2021-0137: sodiumoxide is deprecated - Under evaluation for replacement
+RUSTSEC-2021-0137 = "ignore"
+
+# RUSTSEC-2023-0040: users crate is unmaintained - No fix available
+RUSTSEC-2023-0040 = "ignore"
+
+# RUSTSEC-2021-0145: Potential unaligned read in atty - Legacy dependency
+RUSTSEC-2021-0145 = "ignore"
+
+# RUSTSEC-2023-0059: Unaligned read in users crate - No fix available
+RUSTSEC-2023-0059 = "ignore"
