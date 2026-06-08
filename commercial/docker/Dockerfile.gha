@@ -38,7 +38,9 @@ ENV CARGO_PROFILE_RELEASE_LTO=true \
 
 # 构建二进制文件
 WORKDIR /build/commercial
-RUN cargo build --release --locked --target x86_64-unknown-linux-gnu
+# 删除 Cargo.lock 以确保 patch 配置生效
+RUN rm -f Cargo.lock && \
+    cargo build --release --target x86_64-unknown-linux-gnu
 
 # 清理构建产物
 RUN find target -name "*.a" -delete || true && \
