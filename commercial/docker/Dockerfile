@@ -32,7 +32,7 @@ COPY commercial/src /build/commercial/src
 
 # Build the application
 WORKDIR /build/commercial
-RUN cargo build --release
+RUN cargo build --release --locked
 
 # ==================== Runtime Stage ====================
 FROM debian:bookworm-slim

@@ -51,7 +51,7 @@ EOF
 
 # 切换到商业版目录并构建
 WORKDIR /build/commercial
-RUN cargo build --release
+RUN cargo build --release --locked
 
 # ==================== Runtime Stage ====================
 FROM debian:bookworm-slim
