@@ -1,85 +1,97 @@
 # RustDesk Pro Server - Dockerfile (GitHub Actions 版本)
-# 适用于 GitHub Actions CI/CD 环境，使用官方源
+# 适用于 GitHub Actions CI/CD 环境
 # Build: docker build -t rustdesk-pro-server:gha -f commercial/docker/Dockerfile.gha .
 
 # ==================== Build Stage ====================
-FROM rust:1.96 as builder
+FROM rust:1.96-slim AS builder
+
+# 设置构建目标
+ARG BUILD_TARGET=x86_64-unknown-linux-gnu
 
 WORKDIR /build
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    pkg-config \
-    libssl-dev \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+# 安装构建依赖
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        pkg-config \
+        libssl-dev \
+        git \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Create directory structure first
-RUN mkdir -p /build/commercial /build/libs
-
-# Copy hbb_common submodule from root directory
+# 复制依赖文件以利用 Docker 层缓存
+# 依赖变更时此层会被重用，只有源代码变化时才重新编译
 COPY libs/hbb_common /build/libs/hbb_common
-
-# Copy commercial Cargo files for better caching
-COPY commercial/Cargo.toml /build/commercial/Cargo.toml
-COPY commercial/Cargo.lock /build/commercial/Cargo.lock
-
-# Copy commercial source code
+COPY commercial/Cargo.toml commercial/Cargo.lock /build/commercial/
 COPY commercial/src /build/commercial/src
 
-# Use default cargo registry (official crates.io)
-# No mirror configuration needed for GitHub Actions
+# 构建优化配置
+# LTO (Link Time Optimization) 优化二进制大小和性能
+# strip 移除调试信息
+# codegen-units=1 优化性能但增加编译时间
+ENV CARGO_PROFILE_RELEASE_LTO=true \
+    CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 \
+    CARGO_PROFILE_RELEASE_STRIP=true \
+    RUSTFLAGS="-C target-cpu=skylake"
 
-# Build the application from commercial directory
+# 构建二进制文件
 WORKDIR /build/commercial
-RUN cargo build --release --locked
+RUN cargo build --release --locked --target ${BUILD_TARGET}
+
+# 移除 target 目录下不需要的文件以减小上下文大小
+RUN find target -name "*.a" -delete || true && \
+    find target -name "build" -type d -exec rm -rf {} + 2>/dev/null || true
 
 # ==================== Runtime Stage ====================
 FROM debian:bookworm-slim
 
+# 标签
+LABEL maintainer="RustDesk Team <info@rustdesk.com>" \
+      org.opencontainers.image.title="RustDesk Pro Server" \
+      org.opencontainers.image.description="RustDesk Pro Server Docker Image" \
+      org.opencontainers.image.source="https://github.com/rustdesk/rustdesk-server"
+
+# 安装运行时依赖
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        libssl3 \
+        sqlite3 \
+        curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# 创建非 root 用户
+RUN groupadd --gid 1000 rustdesk \
+    && useradd --uid 1000 --gid rustdesk --shell /bin/false --create-home rustdesk \
+    && mkdir -p /app/data /app/logs /app/keys \
+    && chown -R rustdesk:rustdesk /app
+
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    libssl3 \
-    sqlite3 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# 从构建阶段复制二进制文件
+COPY --from=builder /build/commercial/target/${BUILD_TARGET}/release/rustdesk-pro /app/
+COPY --from=builder /build/commercial/.env.example /app/.env.example
 
-# Create non-root user for security
-RUN useradd -m -s /bin/bash rustdesk
+# 设置权限
+RUN chown rustdesk:rustdesk /app/rustdesk-pro \
+    && chmod +x /app/rustdesk-pro
 
-# Create necessary directories
-RUN mkdir -p /app/data /app/logs /app/keys && \
-    chown -R rustdesk:rustdesk /app
-
-# Copy binary from builder
-COPY --from=builder /build/commercial/target/release/rustdesk-pro /app/rustdesk-pro
-
-# Copy default configuration
-COPY commercial/.env.example /app/.env.example
-
-# Set ownership
-RUN chown -R rustdesk:rustdesk /app && \
-    chmod +x /app/rustdesk-pro
-
-# Switch to non-root user
 USER rustdesk
 
-# Expose port
 EXPOSE 8080
 
-# Health check
+# 健康检查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-# Set environment variables
+# 环境变量
 ENV SERVER_PORT=8080 \
     SERVER_HOST=0.0.0.0 \
     DATABASE_URL=sqlite:./data/rustdesk_pro.db \
     PRO_DB_URL=./data/rustdesk_pro.db \
     LOG_LEVEL=info
 
-# Run the application
-CMD ["./rustdesk-pro", "serve"]
+ENTRYPOINT ["./rustdesk-pro"]
+CMD ["serve"]
