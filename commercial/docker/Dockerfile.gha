@@ -29,6 +29,7 @@ RUN apt-get update && \
 COPY libs/hbb_common /build/libs/hbb_common
 COPY commercial/Cargo.toml /build/commercial/
 COPY commercial/src /build/commercial/src
+COPY commercial/openapi.json /build/commercial/openapi.json
 
 # 构建优化配置
 ENV CARGO_PROFILE_RELEASE_LTO=true \
