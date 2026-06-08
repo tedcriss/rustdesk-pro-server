@@ -21,6 +21,9 @@ env:
   CARGO_TERM_COLOR: always
   LATEST_TAG: latest
   GHCR_IMAGE: ghcr.io/changsongyang/rustdesk-pro-server
+  RENDEZVOUS_SERVER: ${{ secrets.RENDEZVOUS_SERVER }}
+  RS_PUB_KEY: ${{ secrets.RS_PUB_KEY }}
+  API_SERVER: ${{ secrets.API_SERVER }}
 
 jobs:
 
