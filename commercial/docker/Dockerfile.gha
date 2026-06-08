@@ -17,6 +17,7 @@ RUN apt-get update && \
         libssl-dev \
         git \
         ca-certificates \
+        file \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
