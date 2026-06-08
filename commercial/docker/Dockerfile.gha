@@ -38,11 +38,8 @@ ENV CARGO_PROFILE_RELEASE_LTO=true \
 
 # 构建二进制文件
 WORKDIR /build/commercial
-# 修改 proxy.rs 以适配 rustls-platform-verifier 0.7.0 的新 API
-# 旧 API: rustls_platform_verifier::tls_config() -> ClientConfig
-# 新 API: rustls_platform_verifier::Verifier::new() -> Verifier
-RUN sed -i 's/let verifier = rustls_platform_verifier::tls_config();/let verifier = rustls::ClientConfig::builder().with_safe_defaults().with_custom_certificate_verifier(std::sync::Arc::new(rustls_platform_verifier::Verifier::new()));/' /build/libs/hbb_common/src/proxy.rs && \
-    rm -f Cargo.lock && \
+# Cargo.lock 会在构建时重新生成以应用 patch 配置
+RUN rm -f Cargo.lock && \
     cargo build --release --target x86_64-unknown-linux-gnu
 
 # 清理构建产物
