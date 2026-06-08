@@ -65,6 +65,8 @@ jobs:
 
       - name: Build
         run: |
+          # 修改 proxy.rs 以适配 rustls-platform-verifier 0.7.0 的新 API
+          sed -i 's/let verifier = rustls_platform_verifier::tls_config();/let verifier = rustls::ClientConfig::builder().with_safe_defaults().with_custom_certificate_verifier(std::sync::Arc::new(rustls_platform_verifier::Verifier::new()));/' libs/hbb_common/src/proxy.rs
           rm -f commercial/Cargo.lock
           cross build --manifest-path commercial/Cargo.toml --release --target=${{ matrix.job.target }}
         env:
