@@ -9,6 +9,21 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (e.g., pro-v1.0.0)'
+        required: false
+        type: string
+      platforms:
+        description: '构建平台 (逗号分隔: amd64,arm64v8,armv7,windows)'
+        required: false
+        type: string
+        default: 'amd64,arm64v8,armv7,windows'
+      push_docker:
+        description: '是否推送 Docker 镜像'
+        required: false
+        type: boolean
+        default: true
   push:
     branches: [main]
     tags:
