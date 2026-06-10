@@ -29,10 +29,18 @@ LABEL description="RustDesk Pro Server Builder (China Mirror)"
 WORKDIR /build
 
 # 配置国内 Debian 源（加速依赖安装）
-RUN rm -f /etc/apt/sources.list.d/*.list && \
-    echo 'deb http://mirrors.aliyun.com/debian bookworm main non-free-firmware' > /etc/apt/sources.list && \
-    echo 'deb http://mirrors.aliyun.com/debian bookworm-updates main non-free-firmware' >> /etc/apt/sources.list && \
-    echo 'deb http://mirrors.aliyun.com/debian-security bookworm-security main non-free-firmware' >> /etc/apt/sources.list
+# Rust:1.96 基础镜像使用 Debian trixie 版本
+# 彻底清理所有官方源配置，只保留阿里云镜像
+RUN rm -rf /etc/apt/sources.list* && \
+    rm -rf /etc/apt/sources.list.d/* && \
+    mkdir -p /etc/apt/sources.list.d && \
+    echo 'deb http://mirrors.aliyun.com/debian trixie main contrib non-free non-free-firmware' > /etc/apt/sources.list && \
+    echo 'deb http://mirrors.aliyun.com/debian trixie-updates main contrib non-free non-free-firmware' >> /etc/apt/sources.list && \
+    echo 'deb http://mirrors.aliyun.com/debian-security trixie-security main contrib non-free non-free-firmware' >> /etc/apt/sources.list && \
+    echo 'deb-src http://mirrors.aliyun.com/debian trixie main contrib non-free non-free-firmware' >> /etc/apt/sources.list && \
+    echo 'deb-src http://mirrors.aliyun.com/debian trixie-updates main contrib non-free non-free-firmware' >> /etc/apt/sources.list && \
+    echo 'deb-src http://mirrors.aliyun.com/debian-security trixie-security main contrib non-free non-free-firmware' >> /etc/apt/sources.list && \
+    cat /etc/apt/sources.list
 
 # 安装构建依赖
 RUN apt-get update && \
@@ -94,10 +102,18 @@ LABEL build-type="local-development"
 WORKDIR /app
 
 # 配置国内 Debian 源（加速依赖安装）
-RUN rm -f /etc/apt/sources.list.d/*.list && \
-    echo 'deb http://mirrors.aliyun.com/debian bookworm main non-free-firmware' > /etc/apt/sources.list && \
-    echo 'deb http://mirrors.aliyun.com/debian bookworm-updates main non-free-firmware' >> /etc/apt/sources.list && \
-    echo 'deb http://mirrors.aliyun.com/debian-security bookworm-security main non-free-firmware' >> /etc/apt/sources.list
+# Rust:1.96 基础镜像使用 Debian trixie 版本
+# 彻底清理所有官方源配置，只保留阿里云镜像
+RUN rm -rf /etc/apt/sources.list* && \
+    rm -rf /etc/apt/sources.list.d/* && \
+    mkdir -p /etc/apt/sources.list.d && \
+    echo 'deb http://mirrors.aliyun.com/debian trixie main contrib non-free non-free-firmware' > /etc/apt/sources.list && \
+    echo 'deb http://mirrors.aliyun.com/debian trixie-updates main contrib non-free non-free-firmware' >> /etc/apt/sources.list && \
+    echo 'deb http://mirrors.aliyun.com/debian-security trixie-security main contrib non-free non-free-firmware' >> /etc/apt/sources.list && \
+    echo 'deb-src http://mirrors.aliyun.com/debian trixie main contrib non-free non-free-firmware' >> /etc/apt/sources.list && \
+    echo 'deb-src http://mirrors.aliyun.com/debian trixie-updates main contrib non-free non-free-firmware' >> /etc/apt/sources.list && \
+    echo 'deb-src http://mirrors.aliyun.com/debian-security trixie-security main contrib non-free non-free-firmware' >> /etc/apt/sources.list && \
+    cat /etc/apt/sources.list
 
 # 安装运行时依赖（包含调试工具）
 RUN apt-get update && \
