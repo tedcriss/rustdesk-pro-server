@@ -328,22 +328,25 @@ jobs:
           DEBIAN_FRONTEND=noninteractive sudo apt install -y debhelper fakeroot ${{ matrix.job.crossbuild_package }}
       
       - name: 📦 Build debian package
+        env:
+          CONTROL_FILE_CONTENT: |
+            Package: rustdesk-pro-server
+            Version: ${{ needs.pre-build.outputs.deb_version }}
+            Section: net
+            Priority: optional
+            Architecture: ${{ matrix.job.debian_platform }}
+            Maintainer: RustDesk Team <info@rustdesk.com>
+            Description: RustDesk Pro Server - Enterprise Remote Control Solution
+             RustDesk Pro Server is the commercial edition of RustDesk Server,
+             providing enterprise-grade features including license management,
+             user management, device management, and audit logging.
         run: |
           mkdir -p debian-package
           cp binaries/* debian-package/
           
           mkdir -p debian-package/DEBIAN
-          # Create Debian control file
-          printf '%s\n' \
-            "Package: rustdesk-pro-server" \
-            "Version: ${{ needs.pre-build.outputs.deb_version }}" \
-            "Section: net" \
-            "Priority: optional" \
-            "Architecture: ${{ matrix.job.debian_platform }}" \
-            "Maintainer: RustDesk Team <info@rustdesk.com>" \
-            "Description: RustDesk Pro Server - Enterprise Remote Control Solution" \
-            " RustDesk Pro Server is the commercial edition of RustDesk Server, providing enterprise-grade features including license management, user management, device management, and audit logging." \
-            > debian-package/DEBIAN/control
+          # Write control file from environment variable
+          printf '%s\n' "$CONTROL_FILE_CONTENT" > debian-package/DEBIAN/control
           
           fakeroot dpkg-deb --build debian-package rustdesk-pro-server-${{ needs.pre-build.outputs.git_tag }}-${{ matrix.job.name }}.deb
       
