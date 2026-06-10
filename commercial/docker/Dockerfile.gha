@@ -28,10 +28,6 @@ COPY commercial/docker/rootfs/usr/bin /usr/bin
 # 设置权限
 RUN chmod -v a+x /usr/bin/*
 
-# 复制证书（如果存在）
-COPY --chown=rustdesk:rustdesk commercial/docker/rootfs/etc/ssl/certs /etc/ssl/certs
-COPY --chown=rustdesk:rustdesk commercial/docker/rootfs/usr/share/ca-certificates /usr/share/ca-certificates
-
 # 切换到非 root 用户
 USER rustdesk
 
