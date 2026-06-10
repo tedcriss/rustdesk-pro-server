@@ -84,7 +84,7 @@ jobs:
 
   # 编译验证
   build:
-    name: Build Validation
+    name: Build Validation (${{ matrix.target }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -104,8 +104,17 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       
+      # 安装 musl 工具链（仅 musl 目标需要）
+      - name: Install musl toolchain
+        if: contains(matrix.target, 'musl')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+      
       - name: Cache cargo dependencies
         uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
       
       - name: Build
         run: cargo build --manifest-path commercial/Cargo.toml --release --target ${{ matrix.target }}
