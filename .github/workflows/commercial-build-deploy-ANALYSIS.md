@@ -6,8 +6,9 @@
 |------|-----|
 | 文档名称 | Commercial Build & Deploy 工作流分析 |
 | 工作流文件 | `commercial-build-deploy.yml` |
-| 版本 | v1.0.0 |
+| 版本 | v1.1.0 |
 | 创建日期 | 2026-06-10 |
+| 最后更新 | 2026-06-10 |
 | 适用范围 | RustDesk Pro Server 商业版 CI/CD |
 
 ---
@@ -467,6 +468,9 @@ gh run logs <run-id> --job build-summary
 | Docker 推送失败 | Secrets 配置错误 | 检查 DOCKER_HUB_USERNAME/PASSWORD |
 | Release 未创建 | 权限不足 | 检查 permissions 配置 |
 | Manifest 创建失败 | 单架构镜像缺失 | 检查 docker-build 阶段 |
+| Gitleaks Action 版本错误 | 原仓库已归档 | 更新为 `gitleaks/gitleaks-action@v2` |
+| Docker 标签格式错误 `:-amd64` | GIT_TAG 变量为空 | 在 docker-build job 中添加 Set version variables 步骤 |
+| Debian 包版本号为空 | deb-package job 缺少 pre-build 依赖 | 添加 `needs: [pre-build, build-summary]` |
 
 ---
 
