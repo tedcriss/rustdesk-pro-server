@@ -6,6 +6,7 @@ name: Commercial Build
 permissions:
   contents: write
   packages: write
+  id-token: write
 
 on:
   workflow_dispatch:
