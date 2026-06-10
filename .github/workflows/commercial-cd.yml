@@ -16,6 +16,7 @@ env:
   CARGO_TERM_COLOR: always
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-and-push:
@@ -28,6 +29,33 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
+      
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.96"
+          targets: x86_64-unknown-linux-musl
+      
+      - name: Install cross tool
+        run: cargo install cross --git https://github.com/rust-embedded/cross
+      
+      - name: Install OpenSSL
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
+      
+      - name: Build binary
+        run: |
+          rm -f commercial/Cargo.lock
+          cross build --manifest-path commercial/Cargo.toml --release --target=x86_64-unknown-linux-musl
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: true
+          OPENSSL_DIR: /usr
+          OPENSSL_STATIC: 1
+      
+      - name: Copy binary to rootfs
+        run: |
+          mkdir -p commercial/docker/rootfs/usr/bin
+          cp commercial/target/x86_64-unknown-linux-musl/release/rustdesk-pro commercial/docker/rootfs/usr/bin/
+          chmod +x commercial/docker/rootfs/usr/bin/*
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -58,10 +86,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            RENDEZVOUS_SERVER=${{ secrets.RENDEZVOUS_SERVER }}
-            RS_PUB_KEY=${{ secrets.RS_PUB_KEY }}
-            API_SERVER=${{ secrets.API_SERVER }}
       
       - name: Generate SBOM
         uses: anchore/sbom-action@v0.24.0
