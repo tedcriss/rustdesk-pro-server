@@ -333,18 +333,7 @@ jobs:
           cp binaries/* debian-package/
           
           mkdir -p debian-package/DEBIAN
-          cat > debian-package/DEBIAN/control << EOF
-Package: rustdesk-pro-server
-Version: ${{ needs.pre-build.outputs.deb_version }}
-Section: net
-Priority: optional
-Architecture: ${{ matrix.job.debian_platform }}
-Maintainer: RustDesk Team <info@rustdesk.com>
-Description: RustDesk Pro Server - Enterprise Remote Control Solution
- RustDesk Pro Server is the commercial edition of RustDesk Server,
- providing enterprise-grade features including license management,
- user management, device management, and audit logging.
-EOF
+          printf 'Package: rustdesk-pro-server\nVersion: %s\nSection: net\nPriority: optional\nArchitecture: %s\nMaintainer: RustDesk Team <info@rustdesk.com>\nDescription: RustDesk Pro Server - Enterprise Remote Control Solution\n RustDesk Pro Server is the commercial edition of RustDesk Server, providing enterprise-grade features including license management, user management, device management, and audit logging.\n' "${{ needs.pre-build.outputs.deb_version }}" "${{ matrix.job.debian_platform }}" > debian-package/DEBIAN/control
           
           fakeroot dpkg-deb --build debian-package rustdesk-pro-server-${{ needs.pre-build.outputs.git_tag }}-${{ matrix.job.name }}.deb
       
