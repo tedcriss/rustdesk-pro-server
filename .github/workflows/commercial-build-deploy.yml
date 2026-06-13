@@ -618,17 +618,11 @@ jobs:
           submodules: recursive
           fetch-depth: 0
       
-      - name: Set version variables
+      - name: Set version variables from pre-build
         run: |
-          if [ "${{ github.event.inputs.version }}" != "" ]; then
-            T=${{ github.event.inputs.version }}
-          elif [ "${{ github.ref_type }}" = "tag" ]; then
-            T=${GITHUB_REF#refs/tags/}
-          else
-            T="dev-${GITHUB_SHA::8}"
-          fi
-          echo "GIT_TAG=$T" >> $GITHUB_ENV
-          echo "DEBUG: GIT_TAG set to $T"
+          # 使用pre-build job输出的统一版本号
+          echo "GIT_TAG=${{ needs.pre-build.outputs.git_tag }}" >> $GITHUB_ENV
+          echo "DEBUG: GIT_TAG set to ${{ needs.pre-build.outputs.git_tag }}"
       
       - name: 📥 Download binaries
         uses: actions/download-artifact@v5
@@ -760,17 +754,11 @@ jobs:
         with:
           fetch-depth: 0
       
-      - name: Set version variables
+      - name: Set version variables from pre-build
         run: |
-          if [ "${{ github.event.inputs.version }}" != "" ]; then
-            T=${{ github.event.inputs.version }}
-          elif [ "${{ github.ref_type }}" = "tag" ]; then
-            T=${GITHUB_REF#refs/tags/}
-          else
-            T="dev-${GITHUB_SHA::8}"
-          fi
-          echo "GIT_TAG=$T" >> $GITHUB_ENV
-          echo "DEBUG: GIT_TAG set to $T"
+          # 使用pre-build job输出的统一版本号
+          echo "GIT_TAG=${{ needs.pre-build.outputs.git_tag }}" >> $GITHUB_ENV
+          echo "DEBUG: GIT_TAG set to ${{ needs.pre-build.outputs.git_tag }}"
       
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -854,6 +842,13 @@ jobs:
           echo "Build ID:      ${{ needs.pre-build.outputs.build_id }}"
           echo "Version:       ${{ needs.pre-build.outputs.git_tag }}"
           echo "Environment:   Production"
+          echo "----------------------------------------------"
+          echo "📝 AUDIT INFORMATION:"
+          echo "   Triggered by:   ${{ github.actor }}"
+          echo "   Event Type:     ${{ github.event_name }}"
+          echo "   Trigger Time:   ${{ github.event.created_at || github.event.head_commit.timestamp || 'N/A' }}"
+          echo "   Git Ref:        ${{ github.ref }}"
+          echo "   Git SHA:        ${{ github.sha }}"
           echo "----------------------------------------------"
           echo "✅ GitHub Release: Completed"
           echo "✅ Docker Hub:     Completed"
