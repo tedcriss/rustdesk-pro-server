@@ -887,43 +887,24 @@ jobs:
     
     steps:
       - name: 📊 Final Pipeline Status Report
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
           echo "=============================================="
           echo "     Complete Pipeline Execution Summary      "
           echo "=============================================="
           echo ""
-          echo "CI Pipeline:"
-          echo "- CI Status Check: ${{ needs.ci-status-check.result }}"
-          echo ""
-          echo "Build Pipeline:"
-          echo "- P1 Pre-Build: ${{ needs.pre-build.result }}"
-          echo "- P2 Build Linux: ${{ needs.build-linux.result }}"
-          echo "- P2 Build Windows: ${{ needs.build-windows.result }}"
-          echo "- P3 Build Summary: ${{ needs.build-summary.result }}"
-          echo ""
-          echo "CD Pipeline:"
-          echo "- P4 Debian Package: ${{ needs.deb-package.result }}"
-          echo "- P5 GitHub Release: ${{ needs.github-release.result }}"
-          echo "- P6 Docker Build: ${{ needs.docker-build.result }}"
-          echo "- P7 Docker Manifest: ${{ needs.docker-manifest.result }}"
-          echo "- P8 Deploy Summary: ${{ needs.deploy-summary.result }}"
+          
+          # 使用 jq 解析 needs JSON，找出所有失败的 job
+          FAILED=$(echo "$NEEDS_JSON" | jq -r 'to_entries[] | select(.value.result == "failure") | .key' | tr '\n' ' ')
+          
+          # 显示每个 job 的状态
+          echo "$NEEDS_JSON" | jq -r 'to_entries[] | "- \(.key): \(.value.result)"'
+          
           echo ""
           echo "=============================================="
           
-          # 检查是否有失败的任务
-          FAILED=""
-          if [ "${{ needs.ci-status-check.result }}" == "failure" ]; then FAILED="$FAILED ci-status-check"; fi
-          if [ "${{ needs.pre-build.result }}" == "failure" ]; then FAILED="$FAILED pre-build"; fi
-          if [ "${{ needs.build-linux.result }}" == "failure" ]; then FAILED="$FAILED build-linux"; fi
-          if [ "${{ needs.build-windows.result }}" == "failure" ]; then FAILED="$FAILED build-windows"; fi
-          if [ "${{ needs.build-summary.result }}" == "failure" ]; then FAILED="$FAILED build-summary"; fi
-          if [ "${{ needs.deb-package.result }}" == "failure" ]; then FAILED="$FAILED deb-package"; fi
-          if [ "${{ needs.github-release.result }}" == "failure" ]; then FAILED="$FAILED github-release"; fi
-          if [ "${{ needs.docker-build.result }}" == "failure" ]; then FAILED="$FAILED docker-build"; fi
-          if [ "${{ needs.docker-manifest.result }}" == "failure" ]; then FAILED="$FAILED docker-manifest"; fi
-          if [ "${{ needs.deploy-summary.result }}" == "failure" ]; then FAILED="$FAILED deploy-summary"; fi
-
-          if [ "$FAILED" != "" ]; then
+          if [ -n "$FAILED" ]; then
             echo "❌ Failed jobs: $FAILED"
             echo "=============================================="
             exit 1
