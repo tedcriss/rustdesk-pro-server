@@ -253,7 +253,7 @@ jobs:
         id: build-status
         run: |
           echo "status=success" >> $GITHUB_OUTPUT
-          echo "✅ P2 - Build Linux (${{ matrix.job.name }): PASSED"
+          echo "✅ P2 - Build Linux (${{ matrix.job.name }}): PASSED"
       
       - name: Exec chmod
         run: chmod -v a+x commercial/target/${{ matrix.job.target }}/release/*
@@ -918,7 +918,7 @@ jobs:
               FAILED="$FAILED $job"
             fi
           done
-          
+
           if [ "$FAILED" != "" ]; then
             echo "❌ Failed jobs: $FAILED"
             echo "=============================================="
