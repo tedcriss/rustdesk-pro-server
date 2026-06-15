@@ -12,14 +12,15 @@ name: Commercial Build & Deploy
 # 5. 进度跟踪: 每个阶段的状态报告
 #
 # 任务优先级顺序:
-#   P1 (准备)   - pre-build: 构建准备和版本信息
-#   P2 (构建)   - build-linux/build-windows: 并行构建(最多5个并行)
-#   P3 (验证)   - build-summary: 构建结果验证
-#   P4 (打包)   - deb-package: Debian 包构建
-#   P5 (发布)   - github-release: GitHub Release 发布
-#   P6 (部署)   - docker-build: Docker 镜像构建(最多5个并行)
-#   P7 (汇总)   - docker-manifest: Docker Manifest 创建
-#   P8 (总结)   - deploy-summary: 部署结果汇总
+#   P1 (准备)     - pre-build: 构建准备和版本信息
+#   P2 (检查)     - code-quality: 代码质量检查(Rustfmt/Clippy)
+#   P3 (构建)     - build-linux/build-windows: 并行构建(最多5个并行)
+#   P4 (验证)     - build-summary: 构建结果验证
+#   P5 (打包)     - deb-package: Debian 包构建
+#   P6 (发布)     - github-release: GitHub Release 发布
+#   P7 (部署)     - docker-build: Docker 镜像构建(最多5个并行)
+#   P8 (汇总)     - docker-manifest: Docker Manifest 创建
+#   P9 (总结)     - deploy-summary: 部署结果汇总
 #
 # 并行执行策略:
 #   - build-linux: 最多5个架构并行(amd64, arm64v8, armv7)
@@ -154,18 +155,75 @@ jobs:
           echo "=============================================="
 
   # ================================================================================
-  # P2 - Linux 构建
+  # P2 - 代码质量检查
+  # ================================================================================
+  # 功能: Rust代码质量检查（Rustfmt + Clippy）
+  # 输入: 无
+  # 输出: status
+  # 执行条件: 始终执行
+  # 依赖: pre-build
+  # ================================================================================
+  code-quality:
+    name: P2 - Code Quality
+    needs: pre-build
+    runs-on: ubuntu-22.04
+    outputs:
+      status: ${{ steps.quality-status.outputs.status }}
+    
+    steps:
+      - name: Start - Code Quality Check
+        run: |
+          echo "=============================================="
+          echo "    Starting Code Quality Check                "
+          echo "=============================================="
+      
+      - name: Checkout - Repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      
+      - name: Install - Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.96"
+      
+      - name: Check - Rustfmt Formatting
+        run: |
+          echo "Checking code formatting with Rustfmt..."
+          cargo fmt --check --manifest-path commercial/Cargo.toml
+      
+      - name: Check - Clippy Lints
+        run: |
+          echo "Running Clippy static analysis..."
+          cargo clippy --manifest-path commercial/Cargo.toml -- -D warnings
+      
+      - name: Report - Quality Status
+        id: quality-status
+        run: |
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "P2 - Code Quality: PASSED"
+      
+      - name: Complete - Code Quality Check
+        run: |
+          echo "=============================================="
+          echo "    Code Quality Check Completed Successfully   "
+          echo "=============================================="
+
+  # ================================================================================
+  # P3 - Linux 构建
   # ================================================================================
   # 功能: Linux多架构并行构建
   # 输入: 无
   # 输出: status
   # 执行条件: 始终执行
-  # 依赖: pre-build
+  # 依赖: pre-build, code-quality
   # 并行: amd64, arm64v8, armv7 (最多5个并行)
   # ================================================================================
   build-linux:
-    name: P2 - Build Linux (${{ matrix.job.name }})
-    needs: pre-build
+    name: P3 - Build Linux (${{ matrix.job.name }})
+    needs: 
+      - pre-build
+      - code-quality
     runs-on: ubuntu-22.04
     outputs:
       status: ${{ steps.build-status.outputs.status }}
@@ -271,8 +329,10 @@ jobs:
   # 并行: 与build-linux并行执行
   # ================================================================================
   build-windows:
-    name: P2 - Build Windows
-    needs: pre-build
+    name: P3 - Build Windows
+    needs: 
+      - pre-build
+      - code-quality
     runs-on: windows-2022
     outputs:
       status: ${{ steps.build-status.outputs.status }}
@@ -334,7 +394,7 @@ jobs:
           Write-Host "=============================================="
 
   # ================================================================================
-  # P3 - 构建汇总与验证
+  # P4 - 构建汇总与验证
   # ================================================================================
   # 功能: 汇总构建结果并验证所有产物
   # 输入: build-linux.status, build-windows.status
@@ -343,7 +403,7 @@ jobs:
   # 依赖: build-linux, build-windows
   # ================================================================================
   build-summary:
-    name: P3 - Build Summary
+    name: P4 - Build Summary
     needs: 
       - build-linux
       - build-windows
@@ -430,7 +490,7 @@ jobs:
           echo "=============================================="
 
   # ================================================================================
-  # P4 - Debian 包构建
+  # P5 - Debian 包构建
   # ================================================================================
   # 功能: Debian包构建（多架构并行）
   # 输入: pre-build.git_tag, pre-build.deb_version
@@ -440,7 +500,7 @@ jobs:
   # 并行: amd64, arm64v8, armv7 (最多5个并行)
   # ================================================================================
   deb-package:
-    name: P4 - Debian Package (${{ matrix.job.name }})
+    name: P5 - Debian Package (${{ matrix.job.name }})
     needs: 
       - pre-build
       - build-summary
@@ -533,7 +593,7 @@ jobs:
           echo "=============================================="
 
   # ================================================================================
-  # P5 - GitHub Release
+  # P6 - GitHub Release
   # ================================================================================
   # 功能: GitHub Release发布
   # 输入: pre-build.git_tag
@@ -542,7 +602,7 @@ jobs:
   # 依赖: pre-build, build-summary
   # ================================================================================
   github-release:
-    name: P5 - GitHub Release
+    name: P6 - GitHub Release
     needs: 
       - pre-build
       - build-summary
@@ -611,7 +671,7 @@ jobs:
           echo "=============================================="
 
   # ================================================================================
-  # P6 - Docker 镜像构建
+  # P7 - Docker 镜像构建
   # ================================================================================
   # 功能: Docker镜像构建（多架构并行）
   # 输入: pre-build.git_tag
@@ -621,7 +681,7 @@ jobs:
   # 并行: amd64, arm64v8, armv7 (最多5个并行)
   # ================================================================================
   docker-build:
-    name: P6 - Docker Build (${{ matrix.job.name }})
+    name: P7 - Docker Build (${{ matrix.job.name }})
     needs: 
       - pre-build
       - build-summary
@@ -785,7 +845,7 @@ jobs:
           echo "=============================================="
 
   # ================================================================================
-  # P7 - Docker Manifest
+  # P8 - Docker Manifest
   # ================================================================================
   # 功能: Docker多架构Manifest创建
   # 输入: pre-build.git_tag
@@ -794,7 +854,7 @@ jobs:
   # 依赖: pre-build, docker-build
   # ================================================================================
   docker-manifest:
-    name: P7 - Docker Manifest
+    name: P8 - Docker Manifest
     needs: 
       - pre-build
       - docker-build
@@ -874,17 +934,18 @@ jobs:
           echo "=============================================="
           echo "All stages passed:"
           echo "- P1 Pre-Build: PASSED"
-          echo "- P2 Build: PASSED"
-          echo "- P3 Validation: PASSED"
-          echo "- P4 Packaging: PASSED"
-          echo "- P5 Release: PASSED"
-          echo "- P6 Docker Build: PASSED"
-          echo "- P7 Docker Manifest: PASSED"
+          echo "- P2 Code Quality: PASSED"
+          echo "- P3 Build: PASSED"
+          echo "- P4 Validation: PASSED"
+          echo "- P5 Packaging: PASSED"
+          echo "- P6 Release: PASSED"
+          echo "- P7 Docker Build: PASSED"
+          echo "- P8 Docker Manifest: PASSED"
           echo "=============================================="
           echo "Deployment completed successfully!"
 
   # ================================================================================
-  # P8 - 部署汇总
+  # P9 - 部署汇总
   # ================================================================================
   # 功能: 部署结果汇总和审计记录
   # 输入: pre-build.git_tag, pre-build.build_id
@@ -893,7 +954,7 @@ jobs:
   # 依赖: pre-build, github-release, docker-manifest
   # ================================================================================
   deploy-summary:
-    name: P8 - Deployment Summary
+    name: P9 - Deployment Summary
     needs: 
       - pre-build
       - github-release
