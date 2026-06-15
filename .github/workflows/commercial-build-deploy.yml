@@ -539,14 +539,13 @@ jobs:
   # 输入: pre-build.git_tag
   # 输出: status
   # 执行条件: should_deploy == 'true' && needs.build-summary.result == 'success'
-  # 依赖: pre-build, build-summary, deb-package
+  # 依赖: pre-build, build-summary
   # ================================================================================
   github-release:
     name: P5 - GitHub Release
     needs: 
       - pre-build
       - build-summary
-      - deb-package
     runs-on: ubuntu-22.04
     if: ${{ needs.pre-build.outputs.should_deploy == 'true' && needs.build-summary.result == 'success' }}
     outputs:
@@ -725,9 +724,9 @@ jobs:
           cache-to: type=gha,mode=max
           tags: |
             ${{ env.DOCKERHUB_IMAGE }}:${{ env.LATEST_TAG }}-${{ matrix.job.name }}
-            ${{ env.DOCKERHUB_IMAGE }}:${{ env.GIT_TAG }}-${{ matrix.job.name }}
+            ${{ env.DOCKERHUB_IMAGE }}:${{ needs.pre-build.outputs.git_tag }}-${{ matrix.job.name }}
             ${{ env.GHCR_IMAGE }}:${{ env.LATEST_TAG }}-${{ matrix.job.name }}
-            ${{ env.GHCR_IMAGE }}:${{ env.GIT_TAG }}-${{ matrix.job.name }}
+            ${{ env.GHCR_IMAGE }}:${{ needs.pre-build.outputs.git_tag }}-${{ matrix.job.name }}
       
       - name: Verify - Docker Image Push
         run: |
@@ -791,7 +790,7 @@ jobs:
   # 功能: Docker多架构Manifest创建
   # 输入: pre-build.git_tag
   # 输出: status
-  # 执行条件: should_deploy == 'true'
+  # 执行条件: should_deploy == 'true' && docker-build.result == 'success'
   # 依赖: pre-build, docker-build
   # ================================================================================
   docker-manifest:
@@ -800,7 +799,7 @@ jobs:
       - pre-build
       - docker-build
     runs-on: ubuntu-latest
-    if: ${{ needs.pre-build.outputs.should_deploy == 'true' }}
+    if: ${{ needs.pre-build.outputs.should_deploy == 'true' && needs.docker-build.result == 'success' }}
     outputs:
       status: ${{ steps.manifest-status.outputs.status }}
     
@@ -900,7 +899,7 @@ jobs:
       - github-release
       - docker-manifest
     runs-on: ubuntu-22.04
-    if: ${{ always() && needs.pre-build.outputs.should_deploy == 'true' }}
+    if: ${{ always() && needs.pre-build.outputs.should_deploy == 'true' && needs.github-release.result != 'skipped' && needs.docker-manifest.result != 'skipped' }}
     
     steps:
       - name: Display - Deployment Summary
