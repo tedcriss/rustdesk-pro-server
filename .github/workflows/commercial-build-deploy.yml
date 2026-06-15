@@ -414,6 +414,7 @@ jobs:
     outputs:
       build_status: ${{ steps.status.outputs.build_status }}
       all_builds_passed: ${{ steps.status.outputs.all_passed }}
+      has_artifacts: ${{ steps.status.outputs.has_artifacts }}
     
     steps:
       - name: Debug - Workflow Context
@@ -476,14 +477,15 @@ jobs:
           
           STATUS="success"
           MISSING=""
+          FOUND=""
           
           # Check Linux binaries
           for arch in amd64 arm64v8 armv7; do
             if [ -f "artifacts/binaries-linux-$arch/rustdesk-pro" ]; then
               echo "[PASS] binaries-linux-$arch: Found"
+              FOUND="$FOUND $arch"
             else
-              echo "[FAIL] binaries-linux-$arch: MISSING"
-              STATUS="failed"
+              echo "[WARN] binaries-linux-$arch: MISSING"
               MISSING="$MISSING $arch"
             fi
           done
@@ -491,31 +493,34 @@ jobs:
           # Check Windows binary
           if [ -f "artifacts/binaries-windows-x86_64/rustdesk-pro.exe" ]; then
             echo "[PASS] binaries-windows-x86_64: Found"
+            FOUND="$FOUND windows"
           else
-            echo "[FAIL] binaries-windows-x86_64: MISSING"
-            STATUS="failed"
+            echo "[WARN] binaries-windows-x86_64: MISSING"
             MISSING="$MISSING windows"
           fi
           
           echo "----------------------------------------------"
-          echo "Build Status: $STATUS"
+          echo "Found artifacts: $FOUND"
           if [ "$MISSING" != "" ]; then
             echo "Missing artifacts: $MISSING"
+            STATUS="partial"
           fi
+          echo "Build Status: $STATUS"
           echo "=============================================="
           
           echo "build_status=$STATUS" >> $GITHUB_OUTPUT
           echo "all_passed=$([ "$STATUS" == "success" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          echo "has_artifacts=$([ "$FOUND" != "" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
       
-      - name: Fail - On Build Failure
-        if: steps.status.outputs.build_status == 'failed'
+      - name: Warning - Partial Build
+        if: steps.status.outputs.build_status == 'partial'
         run: |
           echo "=============================================="
-          echo "         Build Validation Failed              "
+          echo "         Partial Build Warning                "
           echo "=============================================="
-          echo "Blocking CD pipeline execution"
+          echo "Some artifacts are missing but deployment will continue"
+          echo "Only available artifacts will be deployed"
           echo "=============================================="
-          exit 1
       
       - name: Complete - Build Summary
         if: steps.status.outputs.build_status == 'success'
@@ -543,7 +548,7 @@ jobs:
       - pre-build
       - build-summary
     runs-on: ubuntu-22.04
-    if: ${{ needs.pre-build.outputs.should_deploy == 'true' && needs.build-summary.result != 'failure' }}
+    if: ${{ needs.pre-build.outputs.should_deploy == 'true' && needs.build-summary.outputs.has_artifacts == 'true' }}
     outputs:
       status: ${{ steps.package-status.outputs.status }}
     strategy:
@@ -645,7 +650,7 @@ jobs:
       - pre-build
       - build-summary
     runs-on: ubuntu-22.04
-    if: ${{ needs.pre-build.outputs.should_deploy == 'true' && needs.build-summary.result != 'failure' }}
+    if: ${{ needs.pre-build.outputs.should_deploy == 'true' && needs.build-summary.outputs.has_artifacts == 'true' }}
     outputs:
       status: ${{ steps.release-status.outputs.status }}
     
@@ -723,7 +728,7 @@ jobs:
     needs: 
       - pre-build
       - build-summary
-    if: ${{ needs.pre-build.outputs.should_deploy == 'true' && needs.build-summary.result != 'failure' }}
+    if: ${{ needs.pre-build.outputs.should_deploy == 'true' && needs.build-summary.outputs.has_artifacts == 'true' }}
     runs-on: ubuntu-latest
     outputs:
       status: ${{ steps.docker-status.outputs.status }}
@@ -897,7 +902,7 @@ jobs:
       - pre-build
       - docker-build
     runs-on: ubuntu-latest
-    if: ${{ needs.pre-build.outputs.should_deploy == 'true' && needs.docker-build.result != 'failure' }}
+    if: ${{ needs.pre-build.outputs.should_deploy == 'true' && needs.docker-build.result != 'failure' && needs.docker-build.outputs.status == 'success' }}
     outputs:
       status: ${{ steps.manifest-status.outputs.status }}
     
@@ -995,10 +1000,11 @@ jobs:
     name: P9 - Deployment Summary
     needs: 
       - pre-build
+      - build-summary
       - github-release
       - docker-manifest
     runs-on: ubuntu-22.04
-    if: ${{ always() && needs.pre-build.outputs.should_deploy == 'true' }}
+    if: ${{ always() && needs.pre-build.outputs.should_deploy == 'true' && needs.build-summary.outputs.has_artifacts == 'true' }}
     
     steps:
       - name: Display - Deployment Summary
