@@ -999,7 +999,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
-        continue-on-error: true
       
       # 使用 docker/build-push-action 构建并推送多架构镜像到 Docker Hub 和 GHCR
       - name: Build - Docker Base Image
@@ -1175,7 +1174,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
-        continue-on-error: true
       
       # 使用 docker/build-push-action 构建并推送多架构镜像到 Docker Hub 和 GHCR
       # 使用 Dockerfile.extended 构建拓展镜像
