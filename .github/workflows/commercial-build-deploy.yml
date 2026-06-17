@@ -913,6 +913,47 @@ jobs:
           ls -la release/debian/ 2>/dev/null || true
           echo "=============================================="
       
+      - name: Validate - Build Artifact Naming
+        id: validate-artifacts
+        run: |
+          VERSION="${{ needs.pre-build.outputs.full_version }}"
+          DEB_VERSION="${{ needs.pre-build.outputs.deb_version }}"
+          
+          PASS=0
+          FAIL=0
+          
+          echo "=== 构建物命名验证 ==="
+          
+          EXPECTED_FILES=(
+            "release/linux/rustdesk-pro-server-${VERSION}-linux-amd64.zip"
+            "release/linux/rustdesk-pro-server-${VERSION}-linux-arm64v8.zip"
+            "release/linux/rustdesk-pro-server-${VERSION}-linux-armv7.zip"
+            "release/windows/rustdesk-pro-server-${VERSION}-windows-x86_64.zip"
+            "release/checksums.txt"
+            "release/build-info.json"
+          )
+          
+          for file in "${EXPECTED_FILES[@]}"; do
+            if [[ -f "$file" ]]; then
+              echo "✅ $file"
+              ((PASS++))
+            else
+              echo "❌ $file - 缺失"
+              ((FAIL++))
+            fi
+          done
+          
+          echo ""
+          echo "=== 验证结果 ==="
+          echo "通过: $PASS, 失败: $FAIL"
+          
+          if [[ $FAIL -ne 0 ]]; then
+            echo "Error: Build artifact naming validation failed"
+            exit 1
+          fi
+          
+          echo "[INFO] All build artifacts have correct naming"
+      
       - name: Create - GitHub Release
         uses: softprops/action-gh-release@v2
         with:
