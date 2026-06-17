@@ -15,9 +15,6 @@ pub async fn init_database() -> Result<SqlitePool> {
     }
 
     let connection_string = format!("sqlite:{}", database_url);
-    
-    println!("DEBUG: Database URL: {}", database_url);
-    println!("DEBUG: Connection string: {}", connection_string);
 
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
@@ -43,7 +40,8 @@ pub async fn init_database() -> Result<SqlitePool> {
 async fn init_admin_user_if_not_exists(pool: &SqlitePool) -> Result<()> {
     let admin_username = env::var("ADMIN_USERNAME").unwrap_or_else(|_| "admin".to_string());
     let admin_password = env::var("ADMIN_PASSWORD").unwrap_or_else(|_| "admin123".to_string());
-    let admin_email = env::var("ADMIN_EMAIL").unwrap_or_else(|_| "admin@rustdesk.local".to_string());
+    let admin_email =
+        env::var("ADMIN_EMAIL").unwrap_or_else(|_| "admin@rustdesk.local".to_string());
 
     let exists: Option<(String,)> = sqlx::query_as("SELECT username FROM users WHERE username = ?")
         .bind(&admin_username)

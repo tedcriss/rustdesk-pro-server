@@ -36,7 +36,11 @@ impl std::fmt::Debug for AppState {
 
 impl AppState {
     pub async fn new() -> Self {
-        let db_pool = Arc::new(db::init_database().await.expect("Failed to initialize database"));
+        let db_pool = Arc::new(
+            db::init_database()
+                .await
+                .expect("Failed to initialize database"),
+        );
 
         Self {
             license_manager: Arc::new(LicenseManager::new().await),
